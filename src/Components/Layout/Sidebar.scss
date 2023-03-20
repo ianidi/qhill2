@@ -1,0 +1,17 @@
+.menuLink__container {
+  display: flex;
+  justify-content: flex-start;
+  color: #6f767e;
+  border-radius: 12px;
+}
+.menuLink_active {
+  color: #1a1d1f;
+  background: #efefef;
+}
+@media screen and (max-width: 991px) {
+  .menuLink__container {
+    justify-content: center;
+    padding-top: 45px;
+    padding-bottom: 45px;
+  }
+}

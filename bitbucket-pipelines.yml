@@ -1,0 +1,64 @@
+pipelines:
+  branches:
+    develop:
+      - step:
+          #runs-on:
+          #  - self.hosted
+          #  - linux
+          name: Restore and build React App
+          image: node:14.17.4
+          script:
+            # - docker login $REGISTRY -u $REGISTRY_USER -p $REGISTRY_PASSWORD
+            - docker build -t quanthill.com.ru/frontend:latest .
+            - docker tag quanthill.com.ru/frontend:latest quanthill.com.ru/quanthill/frontend:latest
+            # - docker push quanthill.com.ru/frontend:latest
+            - echo '---------------------------------------'
+            - docker save quanthill.com.ru/frontend:latest --output "artifact_frontend.tar"
+            - chmod 777 artifact_frontend.tar
+            - echo '---------------------------------------'
+          caches:
+            - node
+          artifacts:
+            - "*.tar"
+      - step: 
+          name: Deploy
+          deployment: Development
+          #runs-on:
+          #  - self.hosted
+          #  - linux
+          script:
+            # - echo $REGISTRY 
+            # - echo $REGISTRY_USER
+            - pipe: atlassian/scp-deploy:1.2.1
+              variables:
+                USER: '${SSH_USER}'
+                SERVER: '${SERVER_IP}'
+                REMOTE_PATH: '/home/${SSH_USER}/'
+                LOCAL_PATH: 'artifact_frontend.tar'
+                EXTRA_ARGS: ["-P", "${SERVER_PORT}"]
+            - pipe: atlassian/ssh-run:0.3.1
+              variables:
+                SSH_USER: '${SSH_USER}'
+                SERVER: '${SERVER_IP}'
+                PORT: '${SERVER_PORT}'
+                EXTRA_ARGS: -vvv
+                COMMAND: docker load --input "artifact_frontend.tar"
+            - pipe: atlassian/ssh-run:0.3.1
+              variables:
+                SSH_USER: '${SSH_USER}'
+                SERVER: '${SERVER_IP}'
+                PORT: '${SERVER_PORT}'
+                EXTRA_ARGS: -vvv
+                COMMAND: docker rm /frontend -f
+            - pipe: atlassian/ssh-run:0.3.1
+              variables:
+                SSH_USER: '${SSH_USER}'
+                SERVER: '${SERVER_IP}'
+                PORT: '${SERVER_PORT}'
+                EXTRA_ARGS: -vvv
+                COMMAND: docker run -p 80:3000 --name frontend -d quanthill.com.ru/frontend:latest
+                COMMAND: docker service update --image quanthill.com.ru/frontend:latest universe_frontend
+          artifacts:
+            - "*.tar"
+options:
+  docker: true
